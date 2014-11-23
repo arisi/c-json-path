@@ -1,0 +1,22 @@
+{
+  "juttu": -12.45,
+  "toinen": "xxxx",
+  "kolmas": 4545,
+  "xxx": [
+  "yy","kaa","koo",
+  {
+    "juttu": -1,
+  }
+  ]
+  "jees": "jkjk jk k"  ,
+  "peelo" : +2332,
+  "alijuttu": {
+    "subi": "jee",
+    "aliali": {
+      "syvällä": -111111,
+      "syvätaulukko": [1,2,["a","b","c"]]
+
+    }
+  }
+
+}
