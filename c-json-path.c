@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 /*
-MQTT-SN minimal c-client-library: 
+Minimal JSONPath library for C
 Copyright (C) 2014  Ari Siitonen
 
 This program is free software: you can redistribute it and/or modify
