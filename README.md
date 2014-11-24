@@ -28,7 +28,7 @@ If the input JSON is this:
   "sub": [1,2,3],
   "rec": {
     "deep": "value",
-    "deep_list": ["a","b]
+    "deep_list": ["a","b"]
   }
 }
 ``` 
