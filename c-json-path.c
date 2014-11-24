@@ -36,27 +36,56 @@ char keys[MAX_LEVELS][MAX_TOKEN_LEN];
 int level_index[MAX_LEVELS];
 int level_array[MAX_LEVELS]; //arraymode per level -- fix this
 
+char match[MAX_LEVELS][MAX_TOKEN_LEN];
+int match_level=0,match_count=0,match_index=0;
+char match_key[MAX_TOKEN_LEN*MAX_LEVELS+1];
+char match_val[MAX_TOKEN_LEN+1];
+
 void do_data(int level,char *token,int state) {
-  int i;
-  for (i=1;i<level;i++)
-    printf("['%s']",keys[i]); 
+  int i,mismatch;
+  char val[MAX_TOKEN_LEN+1];
+  char keybuf[MAX_TOKEN_LEN*MAX_LEVELS+1];
   if (state==1)
-    printf("['%s']='%s'\n",key,token);
+    strcpy(val,token);
   else
     if (strchr(token,'.'))
-      printf("['%s']=%f\n",key,atof(token));
+      sprintf(val,"%f",atof(token));
     else
-      printf("['%s']=%d\n",key,atoi(token));
+      sprintf(val,"%d",atoi(token));
+  strcpy(keys[level],key);
+  keybuf[0]=0;
+  for (i=0,mismatch=0;i<=level;i++) {
+    sprintf(&keybuf[strlen(keybuf)],"/%s",keys[i]); 
+    if (strcmp(match[i],"+")==0)
+      ;
+    else if (strcmp(match[i],"#")==0) {
+      if (!mismatch)
+        mismatch=-10000;
+    } else if (strcmp(keys[i],match[i])!=0)
+      mismatch++;
+  }
+  if (level+1!=match_level)
+    mismatch+=100;
+
+  if (mismatch<=0) {
+    if (match_count==match_index) {
+      strcpy(match_key,keybuf);
+      strcpy(match_val,val);
+    }
+    match_count++;
+  }
+  //printf("%s : %s  |  %d\n",keybuf,val,mismatch);
+  
 }
   
 void do_token(char *token,int token_type,int state,int level) {
   if (token_type==0 && level>last_level && last_type==0 && ! level_array[level]) {
-   strcpy(keys[level],token);
+   strcpy(keys[level],token); // store current key, as we are going deeper...
   }
   if (token_type==0) {
     if (!level_array[level]) {
       strcpy(key,token);
-      strcpy(keys[level],token);
+      strcpy(keys[level],token); //
     } else {
       sprintf(key,"%d",level_index[level]);
       sprintf(keys[level],"%d",level_index[level]++);
@@ -72,31 +101,38 @@ void do_token(char *token,int token_type,int state,int level) {
 }
 
 
-int main(int argc, char**argv)
-{
-  if (argc != 2)
-  {
-    printf("usage: c-json-path fname.json \n");
-    exit(1);
-  }
-  FILE *f = fopen(argv[1], "r");
-  fseek(f, 0, SEEK_END);
-  long fsize = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  if (fsize>MAX_JSON_LEN) {
-    printf("Error: Too long JSON file: %ld , max %d \n",fsize,MAX_JSON_LEN);
-    exit(1);
-  }
-  fread(json, fsize, 1, f);
-  fclose(f);
-  printf("Red: %ld bytes\n",fsize);
-  puts(json);
-  printf("Analysis:\n");
+int json_parse(char *json,char *hunt,int index) {
   int i,j,level=0,state=0;
   char token[MAX_TOKEN_LEN+1];
   int token_len=0;
   int token_type=0;
-  for (i=0;i<fsize;i++) {
+  match_index=index;
+  match_count=0;
+  match_key[0]=0;
+  match_val[0]=0;
+  for (i=0,j=0,match_level=0;i<strlen(hunt)+1;i++) {
+    if (hunt[i]=='/' || hunt[i]==0) {
+      j=0;
+      if (match_level++>MAX_LEVELS) {
+          printf("Error: too deep levels at match string, %d\n",match_level);
+          exit (-1);
+      } 
+    } else {
+      match[match_level][j++]=hunt[i];
+      if (j>MAX_TOKEN_LEN) {
+        printf("Error: hunt token too long\n");
+        exit(-1);
+      }
+      match[match_level][j]=0;
+      if (strcmp(match[match_level],"#")==0) {
+        match_level++;
+        break; // need not go deeper!
+      }
+    }
+  }
+  //for (i=0;i<match_level;i++)
+  //  printf("match: '%s'\n",match[i]);
+  for (i=0,level=-1;i<strlen(json);i++) {
       if (state) { // inside quote or number
         if (state==2) {
           if (json[i]>='0' && json[i]<='9'  || json[i]=='.') {
@@ -134,9 +170,13 @@ int main(int argc, char**argv)
         token[0]=json[i];
         state=2;
       } else if (json[i]=='{') {
-        if (level_array[level]) {
-          sprintf(keys[level],"%d",level_index[level]++);
-        }
+        if (level>=0)
+          if (level_array[level]) 
+            sprintf(keys[level],"%d",level_index[level]++);
+        if (level+1>MAX_LEVELS) {
+          printf("Error: too deep levels, %d\n",level+1);
+          exit (-1);
+        } 
         level+=1;
         state=0;
         level_array[level]=0;
@@ -145,6 +185,10 @@ int main(int argc, char**argv)
         level-=1;
         continue; 
       } else if (json[i]=='[') {
+        if (level+1>MAX_LEVELS) {
+          printf("Error: too deep levels, %d\n",level+1);
+          exit (-1);
+        } 
         level+=1;
         state=0;
         token_type=0;
@@ -160,6 +204,42 @@ int main(int argc, char**argv)
         continue;
       } 
     }
-    if (level)
+    if (level!=-1)
       printf("Error: structure mismatch\n");
+  printf("results: %d, picked result no %d : '%s'='%s'\n",match_count,match_index,match_key,match_val);
+}
+
+
+
+int main(int argc, char**argv)
+{
+  if (argc < 3)
+  {
+    printf("usage: c-json-path fname.json match [index]\n");
+    exit(1);
+  }
+  FILE *f = fopen(argv[1], "r");
+  fseek(f, 0, SEEK_END);
+  long fsize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  if (fsize>MAX_JSON_LEN) {
+    printf("Error: Too long JSON file: %ld , max %d \n",fsize,MAX_JSON_LEN);
+    exit(1);
+  }
+  fread(json, fsize, 1, f);
+  fclose(f);
+  //printf("Red: %ld bytes\n",fsize);
+  //puts(json);
+  if (argc==3)
+    json_parse(json,argv[2],0);
+  else {
+    if (strcmp(argv[3],"all")==0) {
+      json_parse(json,argv[2],0);
+      int cnt=match_count,i;
+      for (i=1;i<cnt;i++)
+        json_parse(json,argv[2],i);
+      
+    } else
+      json_parse(json,argv[2],atoi(argv[3]));
+  }
 }
