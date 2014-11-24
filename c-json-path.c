@@ -27,6 +27,14 @@
 #define MAX_LEVELS 20
 
 int json_parse(char *json,char *hunt,int match_index,char *match_key,char *match_val) {
+
+// json: char buffer that holds the JSON data
+// hunt: the key pattern to hunt for
+// match_index: the index of the match we want this function to return in:
+// match_key: mathed item's key
+// match_val: and the actual value as string
+// Returns: number of matched records
+
   int i,j,level=0,state=0;
   char token[MAX_TOKEN_LEN+1];
   int token_len=0;
@@ -73,7 +81,9 @@ int json_parse(char *json,char *hunt,int match_index,char *match_key,char *match
 
     if (mismatch<=0) {
       if (match_count==match_index) {
-        strcpy(match_key,keybuf);
+        if (match_key)
+          strcpy(match_key,keybuf);
+        if (match_val)
         strcpy(match_val,val);
       }
       match_count++;
