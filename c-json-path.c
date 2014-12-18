@@ -43,7 +43,7 @@ int json_parse(char *json,char *hunt,int match_index,char *match_key,char *match
   int last_level=0;
   int last_type=0;
 
-  int cnt=0;
+  //int cnt=0;
 
   char key[MAX_TOKEN_LEN+1];
   char keys[MAX_LEVELS][MAX_TOKEN_LEN];
